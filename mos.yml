@@ -1,0 +1,77 @@
+author: mongoose-os
+description: Implements SPI API on Mongoose OS
+type: lib
+version: 2.16.6-cesanta1
+
+#sources:
+#  - src
+#  - src/${platform}
+#  - mbedtls/library
+
+includes:
+  - include
+  - include/${platform}
+  - mbedtls/include
+
+cdefs:
+  MBEDTLS_USER_CONFIG_FILE: '\"mbedtls_platform_config.h\"'
+  # Do not load CA chain into memory, read it from file during verification.
+  # This make handshake slower but saves a lot of memory.
+  MBEDTLS_X509_CA_CHAIN_ON_DISK: 1
+  # All the certificates in the server's chain except the client certificate
+  # are released as soon as possible to save RAM.
+  # They are therefore not available for examination after handshake,
+  # but we don't care: Mongoose frees them immediately anyway
+  # (`MG_SSL_IF_MBEDTLS_FREE_CERTS` is set).
+  MBEDTLS_FREE_CERT_CHAIN: 1
+
+config_schema:
+  - ["debug.mbedtls_level", "i", 1, {title: "mbedTLS debug level"}]
+
+build_vars:
+  # Override to 0 to disable ATECCx08 support.
+  # Since library is binary, you also need to specify variant: noatca.
+  MGOS_MBEDTLS_ENABLE_ATCA: 1
+  FAMILY: "stm32f4"
+
+conds:
+  # On CC3200 we use SimpleLink for SSL due to lack of space.
+  # mbedTLS is still used for crypto primitives (e.g. GCP auth).
+  - when: mos.platform != "cc3200"
+    apply:
+      cdefs:
+        MG_ENABLE_SSL: 1
+        MG_SSL_IF: MG_SSL_IF_MBEDTLS
+
+  - when: mos.platform == "cc3200"
+    apply:
+      build_vars:
+        MGOS_MBEDTLS_ENABLE_ATCA: 0
+
+  - when: mos.platform == "cc3200"
+    apply:
+      sources:
+        - src/cc32xx
+      includes:
+        - include/cc32xx
+  - when: mos.platform == "cc3220"
+    apply:
+      sources:
+        - src/cc32xx
+      includes:
+        - include/cc32xx
+
+  - when: build_vars.MGOS_MBEDTLS_ENABLE_ATCA == "1"
+    apply:
+      libs:
+        - origin: https://github.com/mongoose-os-libs/atca
+      cdefs:
+        MBEDTLS_AES_ATCA: 1
+        MBEDTLS_ECP_ATCA: 1
+
+tags:
+  - c
+  - security
+
+manifest_version: 2018-06-20
+no_implicit_init_deps: true
