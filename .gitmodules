@@ -1,0 +1,3 @@
+[submodule "mongoose-os-x"]
+	path = mongoose-os-x
+	url = git@github.com:meticulousCraftman/mongoose-os-x.git
